@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stepful Coaching Scheduler - Review</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+
+  <script type="text/babel">
+    class ReviewScreen extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = {
+          rating: 1, // Default rating
+          notes: "",
+        };
+      }
+
+      componentDidMount() {
+        // Parse the URL to get slot ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const slotId = urlParams.get('slotId');
+
+        if (slotId) {
+          // If slot ID is found in the URL, set it in the state
+          this.setState({ slotId: parseInt(slotId, 10) });
+        } else {
+          console.error("Slot ID not found in the URL");
+        }
+      }      
+
+      handleRatingChange = (event) => {
+        this.setState({ rating: parseInt(event.target.value, 10) });
+      };
+
+      handleNotesChange = (event) => {
+        this.setState({ notes: event.target.value });
+      };
+
+      handleSubmitReview = async () => {
+        const { rating, notes } = this.state;
+        const slotId = 2; // Replace with the actual slot ID from your application state
+
+        // Submit the review to the API
+        const response = await fetch(`http://localhost:3000/reviews`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            score: rating,
+            notes: notes,
+            slot_id: slotId
+          }),
+        });
+
+        if (response.ok) {
+            // If the review is submitted successfully, update the state
+            this.setState({ submissionStatus: "Review Submitted" });
+
+            // Redirect back to the coach page after 2 seconds
+            setTimeout(() => {
+            window.location.href = "file:///C:/Users/User/Documents/code/apiReactInterface/coach.html"; // Replace with your coach page URL
+            }, 2000);
+        } else {
+            console.error("Error submitting review");
+        }
+      };
+
+      render() {
+        return (
+          <div class="container">
+            <div class="row">
+              <div class="col-6 offset-3">
+                <h2>Review Session</h2>
+
+                <label>Rating:</label>
+                <select value={this.state.rating} onChange={this.handleRatingChange}>
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <option key={value} value={value}>{value}</option>
+                  ))}
+                </select>
+
+                <br />
+
+                <label>Notes:</label>
+                <textarea
+                  rows="4"
+                  value={this.state.notes}
+                  onChange={this.handleNotesChange}
+                ></textarea>
+
+                <br />
+
+                <button onClick={this.handleSubmitReview}>Submit Review</button>
+
+                {/* Render submission status feedback */}
+                {this.state.submissionStatus && (
+                    <h1 className="mt-3 text-success">{this.state.submissionStatus}</h1>
+                )}                
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    ReactDOM.render(<ReviewScreen />, document.getElementById('root'));
+  </script>
+</body>
+</html>

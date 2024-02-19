@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stepful Coaching Scheduler</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+
+<!-- Your HTML file with React and Babel imports -->
+
+<script type="text/babel">
+  class CoachView extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        coach: "",
+        coachID: 1,
+        availableSlots: [],
+        pastReviews: [],
+        selectedStartTime: "",
+        showPastSlots: false,
+      };
+    }
+
+    handleShowPastSlots = () => {
+        // Toggle the state to show/hide past slots
+        this.setState((prevState) => ({ showPastSlots: !prevState.showPastSlots }));
+    };    
+
+    handleStartTimeChange = (event) => {
+      this.setState({ selectedStartTime: event.target.value });
+    };
+
+    handleAddSlot = async () => {
+      const { coachID, selectedStartTime } = this.state;
+
+      // Create a new slot
+      const response = await fetch("http://localhost:3000/slots", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start_time: selectedStartTime,
+          coach_id: coachID,
+        }),
+      });
+
+      if (response.ok) {
+        // If the slot is added successfully, update the state with the new slot
+        const newSlot = await response.json();
+        this.setState((prevState) => ({
+          availableSlots: [...prevState.availableSlots, newSlot],
+        }));
+      } else {
+        console.error("Error adding slot");
+      }
+    };
+
+    componentDidMount() {
+      // Fetch coach's name
+      fetch("http://localhost:3000/coaches/" + this.state.coachID)
+        .then((response) => response.json())
+        .then((data) => this.setState({ coach: data }))
+        .catch((error) => console.error("Error fetching coach", error));
+
+      // Fetch coach's upcoming schedule
+      fetch("http://localhost:3000/coach/" + this.state.coachID + "/slots")
+        .then((response) => response.json())
+        .then((data) => this.setState({ availableSlots: data }))
+        .catch((error) => console.error("Error fetching coach's schedule", error));
+
+      // Fetch past slots and reviews
+      fetch(`http://localhost:3000/coach/${this.state.coachID}/reviewed`)
+        .then((response) => response.json())
+        .then((data) => this.setState({ pastReviews: data }))
+        .catch((error) => console.error("Error fetching past slots", error));    
+    }
+
+    render() {
+      return (
+        <div class="container">
+          <div class="row">
+            <div class="col-6 offset-3">
+          <h2>Welcome, { this.state.coach.name }</h2>
+          <br />
+          <label>Select Start Time: </label>
+          <input type="datetime-local" onChange={this.handleStartTimeChange} />
+          <button onClick={this.handleAddSlot}>Add Slot</button>
+          <br /><br />
+          {/* Button to show/hide past slots */}
+          <button onClick={this.handleShowPastSlots}>
+            Show {this.state.showPastSlots ? 'Upcoming Slots' : 'Past Reviews'}
+          </button>
+          <br /><br />
+          {!this.state.showPastSlots? <h3>All upcoming slots</h3> : ''}
+          {!this.state.showPastSlots && <TimeSlotList slots={this.state.availableSlots} />} 
+
+          {/* Render PastSlotsList conditionally based on the state */}
+          {this.state.showPastSlots? <h3>All past slots</h3> : ''} 
+          {this.state.showPastSlots && <PastReviewsList reviews={this.state.pastReviews} />}          
+        </div>
+      </div>
+    </div>
+      );
+    }
+  }
+
+  const TimeSlotList = (props) => {
+    return (
+      <div>
+        {props.slots.map((slot) => (
+          <div className={`card bg-primary${slot.student_id ? ' text-white' : '-subtle'} p-3 my-3`} key={slot.id}>
+            {formatDate(slot.start_time)}<br />
+            {slot.student_id ? `Booked by ${slot.student.name}` : 'Not booked yet'}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const PastReviewsList = (props) => {
+      return (
+        <div>
+          {props.reviews.map((review) => (
+            <div className={`card bg-secondary-subtle p-3 my-3`} key={review.id}>
+              {formatDate(review.slot.start_time)}<br />
+              Student: {review.slot.student.name}<br />
+              Score: {review.score}<br />
+              Notes: {review.notes}
+            </div>
+          ))}
+        </div>
+      );
+    };  
+
+  ReactDOM.render(<CoachView />, document.getElementById('root'));
+
+  const formatDate = (dateString) => {
+    const d = new Date(dateString);
+    let to = new Date(dateString);
+    to.setTime(to.getTime() + (2*60*60*1000));
+
+    return d.toLocaleString('en-US', {dateStyle: 'long', timeStyle: "short"}) +
+      " to " + to.toLocaleString('en-US', {timeStyle: "short"})
+  }
+</script>
+
+</body>
+</html>
